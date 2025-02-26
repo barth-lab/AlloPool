@@ -1,6 +1,5 @@
-import torch
-import torch.nn as nn 
-import torch.nn.functional as F 
+import torch  # noqa: CODE
+import torch.nn as nn
 
 
 class SelfAttention(nn.Module):
@@ -17,8 +16,8 @@ class SelfAttention(nn.Module):
             input_dim, n_head, dropout=0.1, kdim=key_dim, batch_first=True
         )
 
-        self.input_dim=input_dim
-        self.key_dim=key_dim
+        self.input_dim = input_dim
+        self.key_dim = key_dim
         self.n_head = n_head
         self.mlp_dim = mlp_dim
 
@@ -32,7 +31,7 @@ class SelfAttention(nn.Module):
         self.mlp = nn.Sequential(
             nn.Linear(self.input_dim, self.mlp_dim),
             nn.ReLU(),
-            nn.Linear(self.mlp_dim, self.input_dim)
+            nn.Linear(self.mlp_dim, self.input_dim),
         )
 
     def forward(self, x):
@@ -45,5 +44,4 @@ class SelfAttention(nn.Module):
         y = self.norm1(x + y)
         y = self.norm2(y + self.mlp(y))
 
-        return y 
-
+        return y

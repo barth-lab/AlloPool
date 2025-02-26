@@ -1,7 +1,5 @@
-import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from einops import rearrange, repeat
 from torch import einsum
 from einops.layers.torch import Rearrange
@@ -132,7 +130,7 @@ class Attention(nn.Module):
         context_mask=None,
         tie_dim=None,
     ):
-        device, orig_shape, h, has_context = (
+        device, _, h, has_context = (
             x.device,
             x.shape,
             self.heads,
@@ -143,7 +141,7 @@ class Attention(nn.Module):
 
         q, k, v = (self.to_q(x), *self.to_kv(context).chunk(2, dim=-1))
 
-        i, j = q.shape[-2], k.shape[-2]
+        i, _ = q.shape[-2], k.shape[-2]
 
         q, k, v = map(lambda t: rearrange(t, "b n (h d) -> b h n d", h=h), (q, k, v))
 
@@ -250,9 +248,11 @@ class AxialAttention(nn.Module):
     def forward(self, x, edges=None, mask=None):
         assert self.row_attn ^ self.col_attn
 
-        n1, n2, h = (
-            x.shape
-        )  # Input x is a pairwise representation matrix of shape [N, N, dim]
+        (
+            n1,
+            n2,
+            h,
+        ) = x.shape  # Input x is a pairwise representation matrix of shape [N, N, dim]
 
         x = self.norm(x)
 
@@ -366,8 +366,8 @@ class PairwiseAttention(nn.Module):
             x = x + self.outer_mean(seq_repr, mask=mask)
 
         # print('X start')
-        x = self.triangle_mult_outoing(x,mask=mask) + x
-        x = self.triangle_mult_incoming(x,mask=mask) + x
+        x = self.triangle_mult_outoing(x, mask=mask) + x
+        x = self.triangle_mult_incoming(x, mask=mask) + x
         x = self.triangle_outgoing(x, edges=x, mask=mask) + x
         x = self.triangle_incoming(x, edges=x, mask=mask) + x
         return x

@@ -148,7 +148,7 @@ class MSTGCN(nn.Module):
         num_for_predict: int,
         len_input: int,
         output_dim: int,
-        prediction='linear',
+        prediction="linear",
     ):
         super(MSTGCN, self).__init__()
         self.prediction = prediction
@@ -162,14 +162,16 @@ class MSTGCN(nn.Module):
                 for _ in range(nb_block - 1)
             ]
         )
-        if self.prediction=='conv':
+        if self.prediction == "conv":
             self._final_conv = nn.Conv2d(
                 int(len_input / time_strides),
                 num_for_predict,
                 kernel_size=(1, nb_time_filter),
             )
-        elif self.prediction=='linear':
-            self._final_conv = nn.Sequential(nn.LayerNorm(nb_chev_filter),nn.Linear(nb_chev_filter, output_dim))
+        elif self.prediction == "linear":
+            self._final_conv = nn.Sequential(
+                nn.LayerNorm(nb_chev_filter), nn.Linear(nb_chev_filter, output_dim)
+            )
             self.condensate_time = nn.Linear(len_input, num_for_predict)
 
         self._reset_parameters()
@@ -186,27 +188,29 @@ class MSTGCN(nn.Module):
 
     def forward(
         self, X: torch.FloatTensor, edge_index: torch.LongTensor
-        ) -> torch.FloatTensor:
-            r"""Making a forward pass. This module takes a likst of MSTGCN blocks and use a final convolution to serve as a multi-component fusion.
-            B is the batch size. N_nodes is the number of nodes in the graph. F_in is the dimension of input features.
-            T_in is the length of input sequence in time. T_out is the length of output sequence in time.
+    ) -> torch.FloatTensor:
+        r"""Making a forward pass. This module takes a likst of MSTGCN blocks and use a final convolution to serve as a multi-component fusion.
+        B is the batch size. N_nodes is the number of nodes in the graph. F_in is the dimension of input features.
+        T_in is the length of input sequence in time. T_out is the length of output sequence in time.
 
-            Arg types:
-                * X (PyTorch FloatTensor) - Node features for T time periods, with shape (B, N_nodes, F_in, T_in).
-                * edge_index (PyTorch LongTensor): Edge indices, can be an array of a list of Tensor arrays, depending on whether edges change over time.
+        Arg types:
+            * X (PyTorch FloatTensor) - Node features for T time periods, with shape (B, N_nodes, F_in, T_in).
+            * edge_index (PyTorch LongTensor): Edge indices, can be an array of a list of Tensor arrays, depending on whether edges change over time.
 
-            Return types:
-                * X (PyTorch FloatTensor) - Hidden state tensor for all nodes, with shape (B, N_nodes, T_out).
-            """
-            for block in self._blocklist:
-                X = block(X, edge_index)
-                # Here, X has shape [batch_size, N_res, F_in, T_in]                
-            if self.prediction=='conv':
-                X = self._final_conv(X.permute(0, 3, 1, 2)) # X passed in: [b, T_in, N_res, dim]
-                #Shape after final conv: [b, num_to_predict, n_res, 1]
-                X = X[:, :, :, -1].permute(0, 2, 1) # Shape [B, N_res, t_oui]
-            elif self.prediction=='linear':
-                X = self.condensate_time(X)
-                X = rearrange(X, 'b n d t -> b t n d')
-                X = self._final_conv(X).squeeze(0) # Shape [N_res, num_for_predict, 3]  
-            return X
+        Return types:
+            * X (PyTorch FloatTensor) - Hidden state tensor for all nodes, with shape (B, N_nodes, T_out).
+        """
+        for block in self._blocklist:
+            X = block(X, edge_index)
+            # Here, X has shape [batch_size, N_res, F_in, T_in]
+        if self.prediction == "conv":
+            X = self._final_conv(
+                X.permute(0, 3, 1, 2)
+            )  # X passed in: [b, T_in, N_res, dim]
+            # Shape after final conv: [b, num_to_predict, n_res, 1]
+            X = X[:, :, :, -1].permute(0, 2, 1)  # Shape [B, N_res, t_oui]
+        elif self.prediction == "linear":
+            X = self.condensate_time(X)
+            X = rearrange(X, "b n d t -> b t n d")
+            X = self._final_conv(X).squeeze(0)  # Shape [N_res, num_for_predict, 3]
+        return X
